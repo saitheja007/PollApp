@@ -1,0 +1,74 @@
+---
+- name: Setup Docker environment and deploy application
+  hosts: all
+  become: yes
+
+  vars:
+    github_repo_url: "https://github.com/saitheja007/PollApp.git"
+    docker_image_name: "saitheja12/poll_app1"
+    docker_image_tag: "latest"
+    docker_hub_username: "saitheja12"
+    docker_hub_password: "Docker@123"
+
+  tasks:
+    - name: Install system dependencies
+      apt:
+        name: "{{ item }}"
+        state: latest
+        update_cache: yes
+      loop:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - software-properties-common
+        - python3-pip
+        - virtualenv
+        - python3-setuptools
+
+    - name: Add Docker GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker Repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable
+        state: present
+
+    - name: Update apt and install docker-ce
+      apt:
+        update_cache: yes
+        name: docker-ce
+        state: latest
+
+    - name: Install docker-py
+      pip:
+        name: docker-py
+
+    - name: Enable Docker service
+      service:
+        name: "docker"
+        state: started
+        enabled: yes
+
+    - name: Clone GitHub repository
+      shell: git clone {{ github_repo_url }} /home/ubuntu/Poll-application
+
+    - name: Build Docker image
+      shell: docker build -t {{ docker_image_name }}:{{ docker_image_tag }} /home/ubuntu/Poll-application
+
+    - name: Log in to Docker Hub
+      shell: echo "{{ docker_hub_password }}" | docker login --username {{ docker_hub_username }} --password-stdin
+
+    - name: Push Docker image to Docker Hub
+      shell: docker push {{ docker_image_name }}:{{ docker_image_tag }}
+
+    - name: Check if container is running
+      shell: docker ps -a
+
+    - name: Run Docker container
+      shell: docker run -dit --name saitheja12 -p 8000:8000 {{ docker_image_name }}:{{ docker_image_tag }}
+
+    - name: Show running images
+      shell: docker images
+
